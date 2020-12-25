@@ -8,6 +8,7 @@ import {
   ContinueStatement,
   ExportExpressionStatement,
   ExportNameStatement,
+  ExportTypeStatement,
   Expression,
   ExpressionStatement,
   IfStatement,
@@ -22,6 +23,7 @@ import {
   StarImportSpecifier,
   Statement,
   StringType,
+  TupleType,
   Type,
   TypeStatement,
   WhileStatement,
@@ -196,7 +198,7 @@ class Parser {
     };
   }
 
-  private parseExportStatement(): ExportExpressionStatement | ExportNameStatement {
+  private parseExportStatement(): ExportExpressionStatement | ExportNameStatement | ExportTypeStatement {
     const { position } = this.tokens[this.offset++];
     let name: string;
 
@@ -208,7 +210,7 @@ class Parser {
       }
       name = (this.tokens[this.offset++] as IdentifierToken).id;
       if (this.peekRead('Assign')) {
-        throw new Error('TODO: this.parseType()');
+        return { position, kind: 'ExportType', name, type: this.parseType() };
       } else if (this.eof()) {
         throw new Error("Unexpected end of input; Missing `=' after `export type'.");
       }
@@ -396,7 +398,8 @@ class Parser {
         throw new Error('TODO: Function types');
 
       case 'LeftBracket':
-        throw new Error('TODO: Tuple types');
+        type = this.parseTupleType();
+        break;
 
       case 'LeftBrace':
         throw new Error('TODO: Record types');
@@ -425,6 +428,30 @@ class Parser {
     }
 
     return type;
+  }
+
+  private parseTupleType(): TupleType {
+    const { position } = this.tokens[this.offset++];
+    const types: Type[] = [];
+
+    for (;;) {
+      if (this.eof()) {
+        throw new Error("Unterminated tuple type; Missing `]'.");
+      } else if (this.peekRead('RightBracket')) {
+        break;
+      }
+      types.push(this.parseType());
+      if (!this.peek('Comma') && !this.peek('RightBracket')) {
+        throw new Error("Unterminated tuple type; Missing `]'.");
+      }
+      this.peekRead('Comma');
+    }
+
+    return {
+      position,
+      kind: 'Tuple',
+      types,
+    };
   }
 
   private parseStringType(): StringType {

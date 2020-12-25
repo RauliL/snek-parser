@@ -9,6 +9,7 @@ export type StatementKind =
   | 'Continue'
   | 'ExportExpression'
   | 'ExportName'
+  | 'ExportType'
   | 'Expression'
   | 'If'
   | 'Import'
@@ -35,7 +36,7 @@ export type ContinueStatement = Statement & {
 };
 
 export type ExportStatement = Statement & {
-  kind: 'ExportExpression' | 'ExportName';
+  kind: 'ExportExpression' | 'ExportName' | 'ExportType';
   name: string;
 };
 
@@ -46,6 +47,11 @@ export type ExportExpressionStatement = ExportStatement & {
 
 export type ExportNameStatement = ExportStatement & {
   kind: 'ExportName';
+};
+
+export type ExportTypeStatement = ExportStatement & {
+  kind: 'ExportType';
+  type: Type;
 };
 
 export type ExpressionStatement = Statement & {
