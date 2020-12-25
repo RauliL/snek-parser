@@ -60,7 +60,7 @@ const parseExportStatement = (state: State): ExportExpressionStatement | ExportN
       throw new Error(`Unexpected ${state.tokens[state.offset].kind}; Missing identifier after \`export type'.`);
     }
     name = (state.tokens[state.offset++] as IdentifierToken).id;
-    if (state.peekRead('Assign')) {
+    if (state.peekRead('=')) {
       return { position, kind: 'ExportType', name, type: parseType(state) };
     } else if (state.eof()) {
       throw new Error("Unexpected end of input; Missing `=' after `export type'.");
@@ -73,7 +73,7 @@ const parseExportStatement = (state: State): ExportExpressionStatement | ExportN
     throw new Error(`Unexpected ${state.tokens[state.offset].kind}; Missing identifier after \`export'.`);
   }
   name = (state.tokens[state.offset++] as IdentifierToken).id;
-  if (state.peekRead('Assign')) {
+  if (state.peekRead('=')) {
     const expression = parseExpression(state);
 
     state.skipNewLine();
@@ -97,7 +97,7 @@ const parseExportStatement = (state: State): ExportExpressionStatement | ExportN
 const parseExpressionStatement = (state: State): ExpressionStatement => {
   const expression = parseExpression(state);
 
-  if (state.peek('Assign')) {
+  if (state.peek('=')) {
     throw new Error('TODO: Parse assignment statement');
   }
   state.skipNewLine();
@@ -115,14 +115,14 @@ const parseIfStatement = (state: State): IfStatement => {
   let thenStatement: Statement;
   let elseStatement: Statement | undefined;
 
-  if (!state.peekRead('Colon')) {
+  if (!state.peekRead(':')) {
     throw new Error("Missing `:' after `if' statement.");
   }
   thenStatement = parseBlock(state, position);
   if (state.peekRead('KeywordElse')) {
     if (state.peekRead('KeywordIf')) {
       elseStatement = parseIfStatement(state);
-    } else if (state.peekRead('Colon')) {
+    } else if (state.peekRead(':')) {
       elseStatement = parseBlock(state, position);
     } else {
       throw new Error("Missing `:' after `else' statement");
@@ -145,7 +145,7 @@ const parseImportStatement = (state: State): ImportStatement => {
 
   do {
     specifiers.push(parseImportSpecifier(state));
-  } while (state.peekRead('Comma'));
+  } while (state.peekRead(','));
   if (!state.peekRead('KeywordFrom') || !state.peek('Str')) {
     throw new Error("Missing module path in `import' statement.");
   }
@@ -164,7 +164,7 @@ const parseReturnStatement = (state: State): ReturnStatement => {
   const { position } = state.tokens[state.offset++];
   let valueExpression: Expression | undefined;
 
-  if ((!state.eof() && !state.peek('NewLine')) || !state.peek('Dedent') || !state.peek('Semicolon')) {
+  if ((!state.eof() && !state.peek('NewLine')) || !state.peek('Dedent') || !state.peek(';')) {
     valueExpression = parseExpression(state);
     state.skipNewLine();
   }
@@ -200,7 +200,7 @@ const parseTypeStatement = (state: State): TypeStatement => {
     throw new Error(`Unexpected ${state.tokens[state.offset]}; Missing identifier.`);
   }
   name = (state.tokens[state.offset++] as IdentifierToken).id;
-  if (state.peekRead('Assign')) {
+  if (state.peekRead('=')) {
     type = parseType(state);
   } else if (state.eof()) {
     throw new Error("Unexpected end of input; Missing `=' after `type'.");
@@ -216,7 +216,7 @@ const parseWhileStatement = (state: State): WhileStatement => {
   const condition = parseExpression(state);
   let statement: BlockStatement | Statement;
 
-  if (!state.peekRead('Colon')) {
+  if (!state.peekRead(':')) {
     throw new Error("Missing `:' after `while' statement.");
   }
   statement = parseBlock(state, position);

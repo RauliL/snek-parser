@@ -2,12 +2,14 @@ import { IdentifierToken, Position, TokenKind } from 'snek-lexer';
 
 import {
   BinaryExpression,
+  BinaryExpressionKind,
   BoolExpression,
   CallExpression,
   Expression,
   FieldExpression,
   SubscriptExpression,
   UnaryExpression,
+  UnaryExpressionKind,
 } from '../types';
 
 import { State } from './state';
@@ -22,10 +24,10 @@ const parseExpressionList = (state: State, position: Position, separator: TokenK
       break;
     } else {
       list.push(parseEqualityExpression(state));
-      if (!state.peek('Comma') && !state.peek(separator)) {
+      if (!state.peek(',') && !state.peek(separator)) {
         throw new Error(`Unterminated ${what}; Missing ${separator}.`);
       }
-      state.peekRead('Comma');
+      state.peekRead(',');
     }
   }
 
@@ -49,13 +51,13 @@ const parsePrimaryExpression = (state: State, position?: Position): Expression =
     case 'Id':
       throw new Error('TODO: Identifiers');
 
-    case 'LeftBracket':
+    case '[':
       throw new Error('TODO: List literals');
 
-    case 'LeftBrace':
+    case '{':
       throw new Error('TODO: Record literals');
 
-    case 'LeftParen':
+    case '(':
       throw new Error('TODO: Parenthesized expressions');
 
     case 'KeywordNull':
@@ -87,7 +89,7 @@ const parseCallExpression = (
   position,
   kind: 'Call',
   callee,
-  arguments: parseExpressionList(state, position, 'RightParen', 'argument list'),
+  arguments: parseExpressionList(state, position, ')', 'argument list'),
   optional,
 });
 
@@ -118,7 +120,7 @@ const parseSubscriptExpression = (
 ): SubscriptExpression => {
   const field = parseEqualityExpression(state, position);
 
-  if (!state.peekRead('RightBracket')) {
+  if (!state.peekRead(']')) {
     throw new Error("Missing `]' after the expression.");
   }
 
@@ -141,10 +143,10 @@ const parseConditionalSelector = (state: State, target: Expression): Expression 
     case 'Id':
       return parseFieldExpression(state, state.tokens[state.offset].position, target, true);
 
-    case 'LeftBracket':
+    case '[':
       return parseSubscriptExpression(state, state.tokens[state.offset].position, target, true);
 
-    case 'LeftParen':
+    case '(':
       return parseCallExpression(state, state.tokens[state.offset].position, target, true);
 
     default:
@@ -155,31 +157,34 @@ const parseConditionalSelector = (state: State, target: Expression): Expression 
 const parseSelector = (state: State, target: Expression): Expression => {
   const { position, kind } = state.tokens[state.offset++];
 
-  if (kind === 'LeftParen') {
-    return parseCallExpression(state, position, target, false);
-  } else if (kind === 'Dot') {
-    return parseFieldExpression(state, position, target, false);
-  } else {
-    return parseSubscriptExpression(state, position, target, false);
+  switch (kind) {
+    case '(':
+      return parseCallExpression(state, position, target, false);
+
+    case '.':
+      return parseFieldExpression(state, position, target, false);
+
+    default:
+      return parseSubscriptExpression(state, position, target, false);
   }
 };
 
 const parseUnaryExpression = (state: State, position?: Position): Expression => {
-  if (state.peek('Not') || state.peek('Add') || state.peek('Sub') || state.peek('BitwiseNot')) {
+  if (state.peek('!') || state.peek('+') || state.peek('-') || state.peek('~')) {
     const { kind, position: newPosition } = state.tokens[state.offset++];
     const operand = parseUnaryExpression(state, newPosition);
 
     return {
       position: newPosition,
       kind: 'Unary',
-      unaryKind: kind === 'Not' ? '!' : kind === 'Add' ? '+' : kind === 'Sub' ? '-' : '~',
+      unaryKind: kind as UnaryExpressionKind,
       operand,
     } as UnaryExpression;
   } else {
     let expression = parsePrimaryExpression(state, position);
 
-    while (state.peek('Dot') || state.peek('LeftParen') || state.peek('LeftBracket') || state.peek('ConditionalDot')) {
-      if (state.peek('ConditionalDot')) {
+    while (state.peek('.') || state.peek('(') || state.peek('[') || state.peek('?.')) {
+      if (state.peek('?.')) {
         expression = parseConditionalSelector(state, expression);
       } else {
         expression = parseSelector(state, expression);
@@ -191,103 +196,88 @@ const parseUnaryExpression = (state: State, position?: Position): Expression => 
 };
 
 const parseMultiplicativeExpression = (state: State, position?: Position): Expression => {
-  let expression = parseUnaryExpression(state, position);
+  let leftOperand = parseUnaryExpression(state, position);
 
   while (
-    state.peek('Mul') ||
-    state.peek('Div') ||
-    state.peek('Mod') ||
-    state.peek('BitwiseXor') ||
-    state.peek('LeftShift') ||
-    state.peek('RightShift') ||
-    state.peek('LogicalAnd') ||
-    state.peek('LogicalOr')
+    state.peek('*') ||
+    state.peek('/') ||
+    state.peek('%') ||
+    state.peek('^') ||
+    state.peek('<<') ||
+    state.peek('>>') ||
+    state.peek('&&') ||
+    state.peek('||')
   ) {
     const { position: newPosition, kind } = state.tokens[state.offset++];
-    const operand = parseUnaryExpression(state, newPosition);
+    const rightOperand = parseUnaryExpression(state, newPosition);
 
-    expression = {
+    leftOperand = {
       position: newPosition,
       kind: 'Binary',
-      binaryKind:
-        kind === 'Mul'
-          ? '*'
-          : kind === 'Div'
-          ? '/'
-          : kind === 'Mod'
-          ? '%'
-          : kind === 'BitwiseXor'
-          ? '^'
-          : kind === 'LeftShift'
-          ? '<<'
-          : kind === 'RightShift'
-          ? '>>'
-          : kind === 'LogicalAnd'
-          ? '&&'
-          : '||',
-      leftOperand: expression,
-      rightOperand: operand,
+      binaryKind: kind as BinaryExpressionKind,
+      leftOperand,
+      rightOperand,
     } as BinaryExpression;
   }
 
-  return expression;
+  return leftOperand;
 };
 
 const parseAdditiveExpression = (state: State, position?: Position): Expression => {
-  let expression = parseMultiplicativeExpression(state, position);
+  let leftOperand = parseMultiplicativeExpression(state, position);
 
-  while (state.peek('Add') || state.peek('Sub')) {
+  while (state.peek('+') || state.peek('-')) {
     const { position: newPosition, kind } = state.tokens[state.offset++];
-    const operand = parseMultiplicativeExpression(state, newPosition);
+    const rightOperand = parseMultiplicativeExpression(state, newPosition);
 
-    expression = {
+    leftOperand = {
       position: newPosition,
       kind: 'Binary',
-      binaryKind: kind === 'Add' ? '+' : '-',
-      leftOperand: expression,
-      rightOperand: operand,
+      binaryKind: kind as BinaryExpressionKind,
+      leftOperand,
+      rightOperand,
     } as BinaryExpression;
   }
 
-  return expression;
+  return leftOperand;
 };
 
 const parseRelationalExpression = (state: State, position?: Position): Expression => {
-  let expression = parseAdditiveExpression(state, position);
+  let leftOperand = parseAdditiveExpression(state, position);
 
-  while (state.peek('Lt') || state.peek('Gt') || state.peek('Lte') || state.peek('Gte')) {
+  while (state.peek('<') || state.peek('>') || state.peek('<=') || state.peek('>=')) {
     const { position: newPosition, kind } = state.tokens[state.offset++];
-    const operand = parseAdditiveExpression(state, newPosition);
+    const rightOperand = parseAdditiveExpression(state, newPosition);
 
-    expression = {
+    leftOperand = {
       position: newPosition,
       kind: 'Binary',
-      binaryKind: kind === 'Lt' ? '<' : kind === 'Gt' ? '>' : kind === 'Lte' ? '<=' : '>=',
-      leftOperand: expression,
-      rightOperand: operand,
+      binaryKind: kind as BinaryExpressionKind,
+      leftOperand,
+      rightOperand,
     } as BinaryExpression;
   }
 
-  return expression;
+  return leftOperand;
 };
 
 const parseEqualityExpression = (state: State, position?: Position): Expression => {
-  let expression = parseRelationalExpression(state, position);
+  let leftOperand = parseRelationalExpression(state, position);
 
-  while (state.peek('Eq') || state.peek('Ne')) {
+  while (state.peek('==') || state.peek('!=')) {
     const { position: newPosition, kind } = state.tokens[state.offset++];
-    const operand = parseRelationalExpression(state, newPosition);
+    const rightOperand = parseRelationalExpression(state, newPosition);
 
-    expression = {
+    leftOperand = {
       position: newPosition,
       kind: 'Binary',
-      binaryKind: kind === 'Eq' ? '==' : '!=',
-      leftOperand: expression,
-      rightOperand: operand,
+      binaryKind: kind as BinaryExpressionKind,
+      leftOperand,
+      rightOperand,
     } as BinaryExpression;
   }
 
-  return expression;
+  return leftOperand;
 };
 
 export const parseExpression = (state: State): Expression => parseEqualityExpression(state);

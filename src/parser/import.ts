@@ -50,7 +50,7 @@ export const parseImportSpecifier = (state: State): ImportSpecifier => {
     case 'Id':
       return parseNamedImportSpecifier(state);
 
-    case 'Mul':
+    case '*':
       return parseStarImportSpecifier(state);
 
     default:

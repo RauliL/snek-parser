@@ -15,7 +15,7 @@
   },
   "prettier": "@treet/prettier-config",
   "dependencies": {
-    "snek-lexer": "git+https://github.com/RauliL/snek-lexer#v1.0.0"
+    "snek-lexer": "^2.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^11.0.1",

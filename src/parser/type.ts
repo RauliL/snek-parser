@@ -8,7 +8,7 @@ const BUILTIN_TYPE_SET = new Set<string>(['Any', 'Bool', 'Float', 'Int', 'Num', 
 
 const parseMultipleType = (state: State, firstType: Type): MultipleType => {
   const { position, kind: tokenKind } = state.tokens[state.offset++];
-  const kind = tokenKind === 'And' ? 'Intersection' : 'Union';
+  const kind = tokenKind === '&' ? 'Intersection' : 'Union';
   const types: Type[] = [firstType];
 
   for (;;) {
@@ -16,7 +16,7 @@ const parseMultipleType = (state: State, firstType: Type): MultipleType => {
       throw new Error('Unexpected end of input; Missing type.');
     }
     types.push(parseType(state));
-    if (!state.peekRead(kind === 'Intersection' ? 'And' : 'Or')) {
+    if (!state.peekRead(kind === 'Intersection' ? '&' : '|')) {
       break;
     }
   }
@@ -55,14 +55,14 @@ const parseTupleType = (state: State): TupleType => {
   for (;;) {
     if (state.eof()) {
       throw new Error("Unterminated tuple type; Missing `]'.");
-    } else if (state.peekRead('RightBracket')) {
+    } else if (state.peekRead(']')) {
       break;
     }
     types.push(parseType(state));
-    if (!state.peek('Comma') && !state.peek('RightBracket')) {
+    if (!state.peek(',') && !state.peek(']')) {
       throw new Error("Unterminated tuple type; Missing `]'.");
     }
-    state.peekRead('Comma');
+    state.peekRead(',');
   }
 
   return {
@@ -83,14 +83,14 @@ export const parseType = (state: State): ListType | Type => {
       type = parseNamedType(state);
       break;
 
-    case 'LeftParen':
+    case '(':
       throw new Error('TODO: Function types');
 
-    case 'LeftBracket':
+    case '[':
       type = parseTupleType(state);
       break;
 
-    case 'LeftBrace':
+    case '{':
       throw new Error('TODO: Record types');
 
     case 'Str':
@@ -101,8 +101,8 @@ export const parseType = (state: State): ListType | Type => {
       throw new Error(`Unexpected ${state.tokens[state.offset]}; Missing type.`);
   }
 
-  while (state.peekRead('LeftBracket')) {
-    if (!state.peekRead('RightBracket')) {
+  while (state.peekRead('[')) {
+    if (!state.peekRead(']')) {
       throw new Error("Missing `]' after `['.");
     }
     type = {
@@ -112,7 +112,7 @@ export const parseType = (state: State): ListType | Type => {
     };
   }
 
-  while (state.peek('And') || state.peek('Or')) {
+  while (state.peek('&') || state.peek('|')) {
     type = parseMultipleType(state, type);
   }
 

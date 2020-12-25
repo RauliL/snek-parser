@@ -352,9 +352,10 @@ serialize-javascript@^4.0.0:
   dependencies:
     randombytes "^2.1.0"
 
-"snek-lexer@git+https://github.com/RauliL/snek-lexer#v1.0.0":
-  version "1.0.0"
-  resolved "git+https://github.com/RauliL/snek-lexer#4fc897b067a344a5d4bf9b685e63db357c02f695"
+snek-lexer@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/snek-lexer/-/snek-lexer-2.0.0.tgz#d1f1b597fc6ecf75ed5d8223be82a42d785838f9"
+  integrity sha512-I5/alnIXWXQdsEj3s19skZf4YIBKmIOQN/2HjNDLVqVH66cy5vPdlzwRcBkSbSEkyj1EK7XDN2nkuQIaOV5fsQ==
 
 source-map-support@~0.5.19:
   version "0.5.19"
