@@ -31,7 +31,7 @@ export class State {
     if (!this.eof()) {
       const token = this.tokens[this.offset++];
 
-      if (token.kind != 'NewLine') {
+      if (token.kind !== 'NewLine') {
         throw new Error(`Unexpected ${token.kind}; Missing new line.`);
       }
     }
